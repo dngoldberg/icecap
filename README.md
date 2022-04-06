@@ -4,6 +4,8 @@ Shallow Ice Cap Model
 Instructions and basic MATLAB guidance
 D Goldberg, 19 May 2017
 
+RECENTLY COPIED FROM WORD, NEED TO EDIT
+
 The ice cap flow model is written in the MATLAB programming language. MATLAB is in many ways similar to Python, and also in many ways easier to use – it simply makes use of slightly different conventions and syntax so it might take time to get used to.
 
 RUNNING THE MODEL
