@@ -1,6 +1,6 @@
 function M = SMB (s_elev)
 
-global elev_ELA melt_factor lapse_rate accum time
+global elev_ELA melt_factor lapse_rate accum
 
     T_ela = accum/melt_factor;
     theta = (elev_ELA-s_elev) * lapse_rate/1000 + T_ela;

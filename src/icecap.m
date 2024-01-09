@@ -1,4 +1,4 @@
-function icecap (runMode,arg1,arg2,arg3)
+function icecap (runMode,arg1,arg2)
 
 % runMode = 1: run model
 % runMode = 0: 
@@ -9,11 +9,6 @@ elseif (runMode==0)
     if (nargin==3)
      min_elev_disp = arg1;
      max_elev_disp = arg2;
-     time_in=-9999999;
-    elseif (nargin==4)
-     min_elev_disp = arg1;
-     max_elev_disp = arg2;
-     time_in = arg3;
     else
      error('provide zmin and zmax for display of SMB profile in m: icecap(0,zmin,zmax)');
     end
@@ -31,7 +26,7 @@ end
 %ensure parameters will be available to other functions
 global topofile oceanmaskfile mbal_type lapse_rate Tsl elev_ELA ...
  melt_factor accum KO_slope_acc KO_slope_abl DD_melt_factor ...
- DD_precip DD_melt_temp rho time clim_from_file slt_series acc_series clim_yr
+ DD_precip DD_melt_temp rho
 
 params;
 
@@ -86,21 +81,6 @@ dlmwrite('Xgrid.txt',X);
 dlmwrite('Ygrid.txt',Y);
 
 
-% if climate file, initialisation of arrays
-
-if (clim_from_file);
-
- MM = csvread(clim_file);
- slt_series = MM(:,2);
- acc_series = MM(:,3);
- clim_yr = MM(:,1);
- [xx ii] = sort(clim_yr);
- slt_series = slt_series(ii);
- acc_series = acc_series(ii);
-
-end
-
-
 % ADVANCED -- set up arrays for numerical solver
 
 
@@ -111,26 +91,6 @@ if (runMode==1)
 disp('preparing model arrays');    
     
 H = zeros(size(topo));
-
-
-if (exist('thickness_path','var'));
-    if (length(thickness_path)>0);
-        ss=dir(thickness_path);
-        if (length(ss)>0);
-            disp(['reading initial thickness ' thickness_path]);
-            Hinit = dlmread(thickness_path);
-            if (size(Hinit)==size(H))
-                H = Hinit;
-            else
-                error('initial thickness wrong size');
-            end
-        else
-            disp(['initial thickness file ' thickness_path ' not found']);
-        end
-    end
-end
-
-
 Hexp = zeros(ny+2,nx+2);
 topoExp = zeros(ny+2,nx+2);
 topoExp(2:end-1,2:end-1) = topo;
@@ -186,10 +146,6 @@ n_inner_loop_max = 10;
 inner_loop_tol = 1e-6;
 
 
-if (exist('start_year'));
- time = start_year;
-end
-
 while (timestep < nYears*round(1/dt))
     
 % ADVANCED -- set up arrays for numerical solver
@@ -204,20 +160,7 @@ while (timestep < nYears*round(1/dt))
 
   H_inner = H;
   
-  Aglen_array = Aglen * ones(size(H));
-  
-  if (exist('use_damage_param') & exist('damage_factor') & exist('damage_max'))
-      if(use_damage_param)
-          damage_frac = zeros(size(H));
-          damage_frac(M<0) = -damage_factor * M(M<0);
-          damage_frac(damage_frac>damage_max) = damage_max;
-          Aglen_array(M<0) = Aglen_array(M<0) ./ (1-damage_frac(M<0));
-      end
-  end
-  
-  Carray = 2*Aglen_array/(nglen+2)*(rhog)^nglen;
-  Csurfarray = 2*Aglen_array/(nglen+1)*(rhog)^nglen;
-     
+   
   for k_inner = 1:n_inner_loop_max;
       
     H_last_iter = H_inner;
@@ -233,12 +176,12 @@ while (timestep < nYears*round(1/dt))
     Sx = (Sexp(2:end-1,3:end)-Sexp(2:end-1,1:end-2))/2/dx;
     Sy = (Sexp(3:end,2:end-1)-Sexp(1:end-2,2:end-1))/2/dy;
     D(2:end-1,2:end-1) = ...
-          Carray .* (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen+2);
+          C * (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen+2);
     D(2:end-1,2:end-1) = D(2:end-1,2:end-1) + ...
           C_slid * (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen+1);
 
     Dsurf(2:end-1,2:end-1) = ...			
-	      Csurfarray .* (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen+1) + ...
+	      Csurf * (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen+1) + ...
 		  C_slid * (Sx.^2 + Sy.^2+1e-8) .^ ((nglen-1)/2) .* Hmid.^(nglen);
 		  
     Dx = .5 * (D(2:end-1,1:end-1)+D(2:end-1,2:end));
@@ -386,14 +329,14 @@ end
 if (plot_time==0)
     
     figure(1)
-    make_plot (time, H, topo, output_speed, [], M);
+    make_plot (time, H, topo, fluxEast, fluxSouth, M);
     
     
 end;
 
 
 timestep = timestep + 1;
-time = start_year + timestep*dt;
+time = timestep * dt;
 disp(['time: ' num2str(time) ' yrs']);
 end
 
@@ -401,7 +344,6 @@ elseif(runMode==0)
     
     close (figure(1))
     
-    time = time_in;
     Z = linspace(min_elev_disp,max_elev_disp,1000);
     switch(mbal_type)
         case 1
@@ -415,11 +357,6 @@ elseif(runMode==0)
     plot(M,Z); grid on; ylabel('elevation');
     set(gca,'xlim',[min(M) max(M)*1.2]);
     xlabel(['SMB']);
-    if (time_in>0);
-        title (['SMB in year ' num2str(time)]);
-    else
-        title('SMB')
-    end
 else
     
     time = time_for_plot;

@@ -1,17 +1,17 @@
 % MODEL RUN PARAMETERS
 
 % number of years of the simulation
-nYears = 1000;     
+nYears = 381;     
 
 % time step (years) -- time in between updates of ice cap velocity and
 % surface
-dt = 0.1 * 1/2;   
+dt = 0.1;   
 
 % how often you would like thickness and flux files written (years)
-freq_files = 50;
+freq_files = 20;
 
 % how often you would like to plot the ice thickness etc
-freq_plot = 5;
+freq_plot = 20;
 
 % decide if you would like to output surface speed
 output_speed_to_file = true;
@@ -26,15 +26,12 @@ nglen = 3;
 % u_sliding = A_s taud^p, has units m / (Pa^n-year)
 
 p_weert = 3;
-A_weert = 1e-15; % gives sliding velocity of 100m/a where tau = 1 bar
+A_weert = 5e-15; % gives sliding velocity of 5m/a where tau = 1 bar
 
 % ice density 
 rho = 917;
 % ice density x gravity, N/m^3
 rhog = rho * 9.8;
-
-
-
 
 % file which will be read to define topography -- given in meters
 topofile = 'domain.dat';
@@ -46,17 +43,17 @@ oceanmaskfile = 'mask.dat';
 % oceanmaskfile = 'testMask';
 
 % width of pixel in x-direction (m)
-dx = 60;
+dx = 26.13757198;
 % Lx=300*300;
 
 % width of pixel in y-direction (m)
-dy = 60;
+dy = 26.13757198;
 % Ly = 300*300;
 
 % optional: x coordinate of bottom left pixel
-x_global = 296496.975591494;
+x_global = -77.403295559681750;
 % optional: y coordinate of bottom left pixel
-y_global = 5148034.7188424;
+y_global = -9.424437231036740;
 
 
 % MASS BALANCE PARAMETERS
@@ -69,23 +66,9 @@ y_global = 5148034.7188424;
 mbal_type = 3; 
 
 % atmospheric lapse rate (deg C per km) -- needed for all models
-lapse_rate = 6.5;
+lapse_rate = 7.081;
 % sea level temp-- needed for models 2 & 3 -- deg C
-Tsl = 20;
-
-
-% the following, if "true", will override any setting 
-%  of temperature and accum via parameters during
-%  the period defined within the file
-% IMPORTANT -- only implemented with Degree day representation
-clim_from_file = true;
-% file should give annual temperature and accumulation
-% year in 1st column, temperature in 2nd column
-% annual accumulation in 3rd column, no headers
-% should also set "start_year" below
-clim_file = 'Book1.csv';
-start_year = 2020;
-
+Tsl = 34.0994;
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Parameters for DEFAULT
@@ -115,9 +98,9 @@ KO_slope_abl = 50;
 
 % melt factor: given in meters ice per yr per degree C. Only causes melt
 % when T>0
-DD_melt_factor = .5;
+DD_melt_factor = 3.98168;
 % precipitation: given in meters ice per yr
-DD_precip = 5.27;
+DD_precip = 0.742;
 
 
 
