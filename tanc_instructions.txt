@@ -1,0 +1,219 @@
+ICECAP model methodology: Protocol followed by Tancrède Leger 
+
+1) Obtain your DEM (e.g. AW3D30, SRTM etc...) and open it in ARCGIS or QGIS, make sure it is non-projected and displayed in the WGS84 geographic coordinate system: otherwise make that correction.
+
+3) Draw a perfect square polygon over the area of the valley you want to reconstruct the glacier into, still WGS84. Make
+   sure the polygon covers the entire hydrological basin and the moraine limit you are targetting to reach with the simulations.
+   However try to make the Domain as small as possible once to you do the above requirements, to reduce computational time as much as possible.
+
+4) Crop the DEM to the polygon square area using the "clip" tool, in "raster processing", in ArcGIS.
+ 
+5) From the cropped DEM: produce 10-interval topographic contours using the "contour" tool, "raster surface". This
+   will be useful for finding the mountain ridges when manually digitising polygons shapefiles etc. 
+
+6) If your glacier reconstruction is aiming to simulate ice extents reaching specific terminal/lateral moraines, map them by producing polyline shapefiles
+   This will be useful in assessing the quality of simulations with moraine location later on. Geographic WGS84, again. Do this before your first run. 
+
+7) If your DEM doesn't require any further changes (i.e. removing modern glaciers, lakes etc) then you can proceed with opening it in Matlab.
+   Otherwise consider removing modern ice with Glabtop, lakes and moraines manually by converting the raster to points and re-interpolating using IDW etc.  
+
+   7.1) Open Matlab, navigate to the right file: Load the .tif DEM:
+
+        [DEM,geoRef] = geotiffread('namefile.tif')
+        info = geotiffinfo('namefile.tif');
+        [x,y]=pixcenters(info);
+ 
+        % Make sure to copy the output info from georef and store it somewhere like a .txt file called "DEM_dimensions" for instance
+
+   7.2) flip the DEM matrix the right way:
+
+        DEM = flipud(DEM);
+
+   7.3) Check that the DEM is correct by drawing a map with colorscale: 
+
+        h = pcolor(DEM); 
+        demcmap(DEM), colorbar 
+        set(h,'LineStyle','none') 
+        axis equal
+        title('Elevation [m]') 
+        [r c] = size(DEM); 
+        axis([1 c 1 r])
+        set(gca,'TickDir','out');
+
+   7.4) Check elevations: to make sure there aren't any errors or anomalies in the topography
+
+        max(DEM(:))
+        min(DEM(:))
+
+   7.5) If the DEM looks good: save it as a .dat file: 
+
+        dlmwrite ('domain.dat',DEM);
+
+   7.6) Create an ocean mask:
+
+        DEM(DEM>0) = 1
+        DEM(DEM<0) = 0
+
+   7.7) Save mask as .dat file:
+
+        dlmwrite ('mask.dat', DEM);
+
+   7.8) Also: open the original .tif raster with this command to check and access DEM corner coordinates: 
+
+        info = geotiffinfo('namefile.tif');
+        [x,y]=pixcenters(info);
+
+        % in the Matlab workspace, open the "info" structure (double click) and then open the "CornerCoords" structure
+        % Copy the "Lat" vand "Lon" values to your .txt file called "DEM_dimensions", which keeps track of your DEM metadata and info. This is important.
+
+   7.9) Copy/paste the "domain.dat" and "mask.dat" files to your folder where you intend to run the icecap model (i.e. the folder with the icecap matlab codes).
+        You are ready to do your first simulation of the icecap model over your chosen domain. The spatial resolution of computation will be defined by the DEM's 
+        spatial resolution. 
+
+8) 
+   8.1 ) You will need to produce a "center flowline" polyline shapefile at some point. 
+         in ArcGIS: draw a polyline following the centre flowline of the glacier you are reconstructing: from the headwall to the bottom of the valley, untill well beyond the terminus of the 
+         hypothetical glacier reconstructed. The first point is at the headwall. Create a point often: a good indicator is to make a point every 5 or 10 m elevation contour interval from the contour lines you created previously.
+         Having many points will enable creating smooth glacier surface gradients in your 2d elevation profile graphs in excel, which will be crucial in assessing the quality of moraine fit. Make more closely-spaced 
+         points toward the target moraine location and future simulated ice-front for a smooth ice-front visualisation.
+   
+   8.2)  Once your center flowline is drawn. You need to calculate the distance to headwall, in meters, for each point of the flowline. 
+         The way I do this is quite time-consuming. First: make sure to re-project the centreline shapefile to the right UTM zone projection (so that measurements in m are accurate).
+         Make sure your ArcGIS workspace is also in this UTM projection.
+         I then "edit" the shapefile as if I was to change points, and measure the distance using the ArcGIS ruler, by clicking a new segment for each new point, and reading the distance into excel.
+         It would be great to develop a code that does that automatically... 
+         Be ready to measure hundreds of points and distances. Its easy to make a mistake also. The first point will be 0 m. 
+         You also need to measure the distance of the moraine(s) you are targetting in your reconstruction to the headwall along the flowline. 
+         Using the ruler tool, click on every flowline shapefile points until reaching the location of the moraine and read distance (m). 
+         I'm sure this could fairly easily be automated using a python code: I just haven't managed to do it yet.
+
+   8.3)  -Create an excel where you enter 5 columns of data. 
+         1st column: "centreline point ID" (point 01,02,03 etc)
+         2nd column: "distance of each centreline point to first point" (in m)
+         3rd column: "Bedrock elevation" (in m) : this will be obtained by a code (see below) 
+         4th column: "Target moraine distance to first point" (in m): this you will have determined from the above measurements
+         5th column: "target moraine elevation" (in m): two lines of data here: the first line = bed elevation at the chosen point of the moraine. The second line = that same elevation + 50 (just to visualise a vertical line at moraine location) 
+
+         -Then, in matlab, I launch a first simulation: it doesn't matter if the glacier matches the moraine. You just need the bed elevation just now. Stop the run after it produces its first thickness files. 
+         -Then, run this code: 
+
+         %Open shapefile:
+         %Change shapefile location according to the location of your centreline shapefile (in geographic WGS84 coordinate system: unprojected)
+         shapefile = 'I:\tanc\tanc_field\Model_runs\Cordillera Blanca\Cojup_valley\Holocene_simulations\Shapefiles\centreline\Cojup_centreline.shp';
+         %Change tiffile location according to the location of your DEM .tif file. (again, unprojected, WGS 84, perfect square, as explained above)
+         tiffile = 'I:\tanc\tanc_field\domains\ALOS world 3d DEM\Cordillera_blanca\Cojup_glacier\WGS84\30m\no_modern_glacier\Lake_bump_trimmed\lake_removed_manually\larger_dem_for_holocene_simulations\LIA_moraine_removed\Moraine_removed_DEM.tif';
+         flowline = shaperead(shapefile);
+         %get rid of NaN
+         rx = flowline.X(1: end-1);
+         ry = flowline.Y(1: end-1);
+         % Read tif file
+         geo = geotiffinfo(tiffile);
+         % Get the pixel coordinates (convert pixels to X,Y)
+         [x,y] = pixcenters(geo);                                                    % x and y are vectors
+         % Convert vectors to matrices
+         [X, Y] = meshgrid(x, y);
+         % Flip upside down the Y matrix because of the tif file...
+         Y = flipud(Y);
+         %generate ice_elevation:
+         h220 = dlmread('thickness_360y.txt');                                      %Change this thickness file name according to what you have produced in this test run
+         topo = dlmread('domain.dat');
+         ice_elevation = topo + h220;              
+         contourf(ice_elevation,60);
+         colorbar
+         %interpolate points for glacier surface profile:
+         flowline_elevation = interp2(X,Y,ice_elevation,rx,ry)
+         %interpolate points for bed surface:
+         bed_elevation = interp2(X,Y,topo,rx,ry)
+         %modify the flowline_elevation array from a row to a column: 
+         flowline_elevation = flowline_elevation'; 
+
+        
+         -Ok so now you can obtain the bed elevation data: double click on "bed_elevation" variable. Copy-paste that data into the above excel column 3 (carefull, you will need to do a "special paste" called "transpose" to transform the line data into a column)
+         -Now you are ready to make the matlab version of that excel table: which will be used to check the glacier extent to moraine match after each simulation. 
+         -In Matlab: 
+             -select excel table: double click
+             -Only select the first five rows: pointID, Distance to first point, bed_elevation, target moraine distance to first point, target moraine elevation 
+             -import data: 
+             -then: run these commands
+            
+             Table_bed_elevation = name_of_your_excel_table_variable; % Copy to new variable with new and different name.
+             clear('name_of_your_excel_table_variable');  % Delete old variable with old name.
+             save('bed_elevation_table.mat', 'Table_bed_elevation') % save table variable
+
+        -Ok so now we keep that bed_elevation_table.mat file in each model run simulation, along with all other icecap codes and domain.dat and mask.dat. The excel isn't useful anymore, although make sure the data in both is the same.
+        -this table will be used by the "glacier_extent_moraine_match_test.m" code to automatically produce the graph you need to check the moraine fit of your ice-front after steady state is reached.
+        -Now you need to update this "glacier_extent_moraine_match_test.m" code. 
+        -Double click on it in matlab: update the "shapefile" and "tiffile" pathways to the correct location as you did just above, and update the thickness file name according to what your number of years required for steady state is.
+        -At the very bottom of the code: update the "xlim" and "ylim" so that it matches the location of the moraine with x lim being distance to headwall and y lim being elevation: set a window that zooms on the moraine so that you can see if the simulated glacier matches that location well.   
+        -You need to change the cell size and the area of one cell also to compute the volume accordingly, which depends on the cell size of your DEM (in m).          
+
+9) Before the furst run you need to change the model parameters in the icecap code in "params.m". Open it from Matlab by double-clicking on it after naviguating to the right "current folder"
+   You will be able to alter the model parameters there: i.e. The SMB model, the TSL, the lapse rate, equation exponents, precipitation, PDD meltfactor etc. The choice of these parameters is something that requires specific analyses.  
+
+10) The first few simulations will be used to tune the parameters and find a good glacier extent match: but also to determine the number of simulations run required for steady-state.
+11) To run the model: use the command "Run_icecap" which will run the model code and produce the moraine-match test graph.
+12) Once you have a realistic glacier extent that matches your target moraine at reaches steady-state: with somewhat realistic parameters and paleoclimate: do the following: 
+13) Create the simulated glacier mask polygon in ArcGIS: this will be used to compute all statistics for the glacier by cropping the glacier out of the simulated ice thickness and velocity files.
+    To do that: you will need model output ice-elevation and ice thickness rasters that can be imported in ArcGIS.
+ 
+    -After the model run: run the following commands: 
+    -You will have needed to update the coordinates of the DEM corners for the georeference command below: that info can be found in the "info" variable: under "cornercoordinates" (see section 7.1 of this protocol)  
+
+      %%%%%%%%%%%%%%%%%%%%%%%%%% tif file ice elevation for opening in ArcGIS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      h220 = dlmread('thickness_360y.txt');                                 % alter the Yr numbers in textfile title if your simulation reached steady-state earlier and was stopped (e.g. 260 years etc)
+      topo = dlmread('domain.dat');
+      icesurface = topo + h220;
+      contourf(icesurface,60);
+      colorbar
+      % Get geo referenced 
+      R = georasterref('RasterSize',size(topo),'LatitudeLimits',[-9.424437231036740,-9.358275393256740],'LongitudeLimits',[-77.403295559681750,-77.337133721901750]);  % alter these coordinates according to your DEM
+      % write to tiff file 
+      tiffile = 'ice_elevation_360yr.tif' ;                                 % do not alter this title even if you did alter the textfile input title. This is a default name used in the AAR python code... 
+      geotiffwrite(tiffile,icesurface,R)  
+      % you can now load the .tif file into ArcGIS if you want 
+      % reproject to UTM if you want to make measurements (otherwise in degrees and not metric)
+
+      %%%%%%%%%%%%%%%%%%%%%%%%%%% tif file ice thickness for opening in ArcGIS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      % read thickness output files in folder 
+      h220 = dlmread('thickness_360y.txt');                               % alter the Yr numbers in textfile title if your simulation reached steady-state earlier and was stopped
+      % Get geo referenced 
+      R = georasterref('RasterSize',size(topo),'LatitudeLimits',[-9.424437231036740,-9.358275393256740],'LongitudeLimits',[-77.403295559681750,-77.337133721901750]);   % alter these coordinates according to your DEM
+      % write to tiff file 
+      tiffile = 'glacier_thickness_360yr.tif' ;                           % do not alter this title if you did alter the textfile input title. This is default used in the AAR python code... 
+      geotiffwrite(tiffile,h220,R)  
+      % you can now load the .tif file into ArcGIS if you want 
+      % reproject to UTM if you want to make measurements (otherwise in degrees and not metric)
+
+    
+    -Ok so now you can import those two rasters in ArcGIS and creat ice-elevation contour lines using the "contour" tool.
+    -From that: you can draw the polygon that highlights your simulated glacier: by following the ice divides, and by planning for extra space towards the ice front. At some point you have to make some subjective choice as to what ice
+     you consider "feeds" the glacier or not. Remember: this polygon is super important: it needs to be drawn rigorously. 
+
+15) After your polygon is drawn and saved in the right place: you can update the "Compute_statistics_and_make_figures.m" code which produces all the required figures, statistics etc after each simulation. 
+    This code is ran only once you are happy with the how a simulation matches the moraine record and consider it a valid run: and want to start recording the statistics. 
+    -In this code: at for each run, the user will need to alter the work environment (correct directory) and the textfile name so they match the steady-state run year number. 
+    -for each glacier advance studied: the user will need to change the tiffile and shapefile pathnames throughout the code. 
+    -the different arrays created by the code include data on glacier volume, glacier surface area, glacier thickness and glacier surface velocity 
+    -the code will also produce png s for ice thickness, ice elevation and ice velocity that will be saved in the work directory.
+
+16) If that wans't done before: determine the ELA for that run. 
+    this is done by, in the correct work environment, and without changing params.m after the run, typing this command: 
+    
+    icecap(0,x,y)
+
+    where x and y are bracketing numbers that will determine the boundaries of the plot. 
+    to make sure you get the accurate ELA: make sure to zoom into the plot and estimate the ELA (where SMB: the x axis value, is equal to 0) to within 1 decimal. 
+    
+17) After the matlab code is run: the script_aar.py code can be run through a python console to determine the AAR for each run.
+    -in this code: the correct folder name and ELA value needs to be updated for each run.
+    -for each glacier advance: the correct glacier polygon pathname needs to be updated, as does the correct UTM zone also.
+    -the python code should find the correct .tif file that was produced from the "Compute_statistics_and_make_figures.m" code as well: if the filenames match: make sure that is the case.
+    -the code will give you the "final ratio" value: which is the AAR for that run. 
+    -the code will also create a folder "AAR" in the working directory: which will feature a texfile with the ratio, but also some shapefiles of the cropped ice elevation, ice elevation contours in the correct UTM zone projection. 
+
+18) For each modelled glacier advance: I have an excel table: in which I add all statistics (from matlab and Python codes) after each run. That enables to compute statistics afterwards.
+
+19) Once things are set up properly for a specific glacier advance reconstruction: the Run_icecap.m code can be used to launch a run instead of the icecap(1) command. 
+    This codes automatizes things. It runs the icecap model simulation. When the simulation is complete: it runs the moraine match code and displays the ice-elevation profile graph automatically: and if the user is satisfied with 
+    the moraine match: typing the command "dbcont" runs the statistics and output graphs code. if the moraine match isn't good and the user wants to re-run the simulation: the command "dbquit" needs to be written to kill the code. 
+    This makes things significantly faster but it requires everything to have been set up properly before the run.  
