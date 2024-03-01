@@ -10,7 +10,7 @@ The ice cap flow model is written in the MATLAB programming language. MATLAB is 
 
 RUNNING THE MODEL
 The ice model is run by calling the function icecap which is in the file icecap.m. At the prompt, type 
->> icecap (1)
+ icecap (1)
 The reason for typing (1) means that you are specifying runmode=1 – an ice model run (alternative described below). This will begin running the model, and making plots, as you have seen before. It will also create data files, with a frequency (in years) given by freq_files in params.m. The files will have the names
 thickness_Ny.txt
 fluxE_Ny.txt
